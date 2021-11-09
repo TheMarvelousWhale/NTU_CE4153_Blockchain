@@ -1,3 +1,9 @@
+# Custom ignore
+build/
+
+
+
+# Default gitignore
 # Logs
 logs
 *.log
