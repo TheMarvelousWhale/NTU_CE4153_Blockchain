@@ -30,3 +30,12 @@ Certain design decisions and ongoing design decisions to be made:
 1. The reward contract will only need to know about the number of shares the LP stake into the pools. Returning the initial staked amount is the LP job and not the Reward Contract job. Hence we have removed that info from Reward Contract. 
 2. Should the NFT minting only be done by Owner -- up to discussion 
 3. The Mine code is definitely wrong as of this writing (9 nov 21) 
+4. How do we add the 2 pools? 
+   1. call addPool(0x0,addr_of_YM1) and addPool(0x0,addr_of_YM2)
+5. How do we call the stake function from front-end? 
+   1. say ETH-YM1 is poolID #0, 
+   2. front end need to know the exchange rate and ask for correct deposit amount of the token pair
+   3. say now we know we need x eth and y YM1
+   4. invoke stake(0,x,y)  //in wei 
+   5. it triggers _deposit(0,x) and _deposit(addr_of_YM1,y)
+   6. it then record user contribution, and record the pool amount 
