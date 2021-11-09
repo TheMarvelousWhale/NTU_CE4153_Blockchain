@@ -8,7 +8,13 @@ import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 
+interface RewardLockerInterface {
+        function deposit(uint256 shares) external; 
+} 
 
+
+//@dev: contract for liquidity mining
+//    : only allow staking of ERC20 token - ETH pairs
 contract KleeMine is Ownable {
     using SafeMath for uint256;
     using SafeCast for uint256;
@@ -16,21 +22,16 @@ contract KleeMine is Ownable {
     struct PoolInfo {
         address TokenA;
         address TokenB;
-        uint256 totalStake;
+        uint256 TokenA_amount;
+        uint256 TokenB_amount;
     }
     struct UserInfo {
         uint256 TokenAAmount;
         uint256 TokenBAmount;
     }
-
-
     PoolInfo[] pools;
-
     mapping(uint256 => mapping(address => UserInfo)) internal userInfo;
-
-    contract RewardLockerInterface {
-        function deposit(uint256 amount); 
-    } 
+    mapping(uint256 => mapping(address => bool)) internal LPExists;
 
     address _RewardLockerAddress;
     RewardLockerInterface private _RewardLocker;
@@ -40,55 +41,88 @@ contract KleeMine is Ownable {
 
     function setRewardLockerAddress(address newRL) external onlyOwner {
         _RewardLockerAddress = address(newRL);
-        _RewardLocker = RewardLockerInterface(_RewardLockerAddress)
+        _RewardLocker = RewardLockerInterface(_RewardLockerAddress);
     }
 
+// ##############   pool related functions  ######################
     function addPool(address tokenA, address tokenB) public {
-        pools.push(PoolInfo(tokenA,tokenB,0));
+        pools.push(PoolInfo(tokenA,tokenB,0,0));
+    }
+    function getPoolInfo(uint256 poolID) public view returns(uint256,uint256) {
+        return (pools[poolID].TokenA_amount,pools[poolID].TokenB_amount);
     }
 
+// ################## helper functions 
     function _deposit(address _tokenAddr,uint256 amount) public payable {
         //transfer the money from certain coins to the pools
-        if (_tokenAddr == 0)  {//native token- eth
+        IERC20 _ERC20Token;
+        if (_tokenAddr == address(0))  {//native token- eth
             //the amount of eth send here will be given to the contract
         } else {
-            _thatToken = IERC20(_tokenAddr);
-            _thatToken.transferFrom(_msgSender(),address(this),amount);
+            _ERC20Token = IERC20(_tokenAddr);
+            _ERC20Token.transferFrom(_msgSender(),address(this),amount);
         }
 
     }
 
-    function _withdraw(address _tokenAddr) internal {
-        if (_tokenAddr == 0)  {//native token- eth
-            payable(_msgSender()).transfer(AMOUNT);
+    function _withdraw(address _tokenAddr,uint256 amount) internal {
+        IERC20 _ERC20Token; 
+        if (_tokenAddr == address(0))  {//native token- eth
+            payable(_msgSender()).transfer(amount);
         } else {
-            _thatToken = IERC20(_address);
-            _thatToken.transfer(_msgSender(),AMOUNT);
+            _ERC20Token = IERC20(_tokenAddr);
+            _ERC20Token.transfer(_msgSender(),amount);
         }
     }
+
+    function calculate_shares(uint256 poolID, uint256 amountA, uint256 amountB) view private returns(uint256) {
+        //gonna assume that the ratio is correct and I dont have to do min of ratio
+        //also will assume that pool is not empty as this thing is only called when it is after 
+        //initial stake
+        // if they contribute 100% of the liquid, i take that as 100 shares
+        return amountA.div(pools[poolID].TokenA_amount).mul(100);
+    }
+
+// ### core functions 
     function stake(uint256 poolID,uint256 amountA, uint256 amountB) public {
         require(poolID < pools.length);
-        _deposit(pools[poolID].TokenA,amountA,poolID);
-        _deposit(pools[poolID].TokenB,amountB,poolID);
+        _deposit(pools[poolID].TokenA,amountA);
+        _deposit(pools[poolID].TokenB,amountB);
+        if (LPExists[poolID][_msgSender()] == false) {
+            LPExists[poolID][_msgSender()] == true;
+        }
         userInfo[poolID][_msgSender()].TokenAAmount.add(amountA);
         userInfo[poolID][_msgSender()].TokenBAmount.add(amountB);
-        //for now we record everything in eth -- also making the tokenA in the pair an eth for
-        //ease of implementation
-        
-        if (pools[poolID].totalStake != 0) {
-            _RewardLocker.deposit(amountA,amountA.div(pools[poolID].totalStake.mul(100)));
+
+        if (pools[poolID].TokenA_amount != 0) {
+            uint256 shares = calculate_shares(poolID,amountA,amountB);
+            _RewardLocker.deposit(shares);
         }
-        pools[poolID].totalStake.add(amountA);
+        pools[poolID].TokenA_amount.add(amountA);
+        pools[poolID].TokenB_amount.add(amountB);
     }
 
-    function withdraw(uint256 poolID,uint256 amountA, uint256 amountB) public {
+    //@dev: this is for the DMM, I will not implement it lmao 
+    function swap(uint256 poolID,address tokenGiven, address tokenGivenAmount) public {
+        address tokenToSwapAddr = tokenGiven == pools[poolID].TokenA ? pools[poolID].TokenB : pools[poolID].TokenA;
+        //TODO: implement constant product formula
+
+    }
+
+
+
+    function harvestOnePool(uint256 poolID) public {
         require(poolID < pools.length);
-        _withdraw(pools[poolID].TokenA,amountA,poolID);
-        _withdraw(pools[poolID].TokenB,amountB,poolID);
+        require(LPExists[poolID][_msgSender()] == true);
+        uint256 amountA = userInfo[poolID][_msgSender()].TokenAAmount;
+        uint256 amountB = userInfo[poolID][_msgSender()].TokenBAmount;
+        _withdraw(pools[poolID].TokenA,amountA);
+        _withdraw(pools[poolID].TokenB,amountB);
         userInfo[poolID][_msgSender()].TokenAAmount.sub(amountA);
         userInfo[poolID][_msgSender()].TokenBAmount.sub(amountB);
-
-        pools[poolID].totalStake.sub(amountA);
+        pools[poolID].TokenA_amount.sub(amountA);
+        pools[poolID].TokenB_amount.sub(amountB);
+        LPExists[poolID][_msgSender()] = false;
 
      }
 }
