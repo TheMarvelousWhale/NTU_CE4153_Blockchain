@@ -92,8 +92,6 @@ contract KleeMine is Ownable {
             LPExists[poolID][_msgSender()] == true;
         }
 
-
-
         // if they sent ether to the pool, we need to ignore the param amountX
         // by overwriting the amountX with the msg.value (the actual ether sent)
         if (pools[poolID].TokenA == address(0)) {
