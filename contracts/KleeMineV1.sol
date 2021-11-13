@@ -91,15 +91,28 @@ contract KleeMine is Ownable {
         if (LPExists[poolID][_msgSender()] == false) {
             LPExists[poolID][_msgSender()] == true;
         }
+
+
+
+        // if they sent ether to the pool, we need to ignore the param amountX
+        // by overwriting the amountX with the msg.value (the actual ether sent)
+        if (pools[poolID].TokenA == address(0)) {
+           amountA = msg.value;
+        }
+        if (pools[poolID].TokenB == address(0)) {
+            amountB = msg.value;
+        } 
+
         userInfo[poolID][_msgSender()].TokenAAmount.add(amountA);
         userInfo[poolID][_msgSender()].TokenBAmount.add(amountB);
+        pools[poolID].TokenA_amount.add(amountA);
+        pools[poolID].TokenB_amount.add(amountB);
 
         if (pools[poolID].TokenA_amount != 0) {
             uint256 shares = calculate_shares(poolID,amountA,amountB);
             _RewardLocker.deposit(shares);
         }
-        pools[poolID].TokenA_amount.add(amountA);
-        pools[poolID].TokenB_amount.add(amountB);
+  
     }
 
     //@dev: this is for the DMM, I will not implement it lmao 
