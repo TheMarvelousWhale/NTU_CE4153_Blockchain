@@ -6,5 +6,5 @@ module.exports = function(deployer) {
   deployer.deploy(artifacts.require("YM1"));
   deployer.deploy(artifacts.require("YM2"));
   deployer.deploy(artifacts.require("KleeTokenV6"));
-  deployer.deploy(artifacts.require("KleeMineV1"));
+  deployer.deploy(artifacts.require("KleeMineV3"));
 };

@@ -15,7 +15,7 @@ interface RewardLockerInterface {
 
 //@dev: contract for liquidity mining
 //    : only allow staking of ERC20 token - ETH pairs
-contract KleeMine is Ownable {
+contract KleeMineV3 is Ownable {
     using SafeMath for uint256;
     using SafeCast for uint256;
 
@@ -29,9 +29,9 @@ contract KleeMine is Ownable {
         uint256 TokenAAmount;
         uint256 TokenBAmount;
     }
-    PoolInfo[] pools;
-    mapping(uint256 => mapping(address => UserInfo)) internal userInfo;
-    mapping(uint256 => mapping(address => bool)) internal LPExists;
+    PoolInfo[] public pools;
+    mapping(uint256 => mapping(address => UserInfo)) public userInfo;
+    mapping(uint256 => mapping(address => bool)) public LPExists;
 
     address _RewardLockerAddress;
     RewardLockerInterface private _RewardLocker;
@@ -86,27 +86,29 @@ contract KleeMine is Ownable {
 // ### core functions 
     function stake(uint256 poolID,uint256 amountA, uint256 amountB) public payable {
         require(poolID < pools.length);
-        _deposit(pools[poolID].TokenA,amountA);
-        _deposit(pools[poolID].TokenB,amountB);
+        //_deposit(pools[poolID].TokenA,amountA);
+        //_deposit(pools[poolID].TokenB,amountB);
         if (LPExists[poolID][_msgSender()] == false) {
             LPExists[poolID][_msgSender()] == true;
         }
 
+        PoolInfo storage deezPool = pools[poolID];
+        UserInfo storage deezUser = userInfo[poolID][_msgSender()];
         // if they sent ether to the pool, we need to ignore the param amountX
         // by overwriting the amountX with the msg.value (the actual ether sent)
-        if (pools[poolID].TokenA == address(0)) {
+        if (deezPool.TokenA == address(0)) {
            amountA = msg.value;
         }
-        if (pools[poolID].TokenB == address(0)) {
+        if (deezPool.TokenB == address(0)) {
             amountB = msg.value;
         } 
 
-        userInfo[poolID][_msgSender()].TokenAAmount.add(amountA);
-        userInfo[poolID][_msgSender()].TokenBAmount.add(amountB);
-        pools[poolID].TokenA_amount.add(amountA);
-        pools[poolID].TokenB_amount.add(amountB);
+        deezUser.TokenAAmount= deezUser.TokenAAmount.add(amountA);
+        deezUser.TokenAAmount = deezUser.TokenAAmount.add(amountB);
+        deezPool.TokenA_amount = deezPool.TokenA_amount.add(amountA);
+        deezPool.TokenB_amount = deezPool.TokenB_amount.add(amountB);
 
-        if (pools[poolID].TokenA_amount != 0) {
+        if (deezPool.TokenA_amount != 0) {
             uint256 shares = calculate_shares(poolID,amountA,amountB);
             _RewardLocker.deposit(shares);
         }
