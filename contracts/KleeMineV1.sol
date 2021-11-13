@@ -80,7 +80,7 @@ contract KleeMine is Ownable {
         //also will assume that pool is not empty as this thing is only called when it is after 
         //initial stake
         // if they contribute 100% of the liquid, i take that as 100 shares
-        return amountA.div(pools[poolID].TokenA_amount).mul(100);
+        return amountA.mul(100).div(pools[poolID].TokenA_amount);
     }
 
 // ### core functions 
@@ -88,8 +88,8 @@ contract KleeMine is Ownable {
         require(poolID < pools.length);
         _deposit(pools[poolID].TokenA,amountA);
         _deposit(pools[poolID].TokenB,amountB);
-        if (LPExists[poolID][_msgSender()] == false) {
-            LPExists[poolID][_msgSender()] == true;
+        if (!LPExists[poolID][_msgSender()]) {
+            LPExists[poolID][_msgSender()] = true;
         }
 
         // if they sent ether to the pool, we need to ignore the param amountX
@@ -101,10 +101,16 @@ contract KleeMine is Ownable {
             amountB = msg.value;
         } 
 
-        userInfo[poolID][_msgSender()].TokenAAmount.add(amountA);
-        userInfo[poolID][_msgSender()].TokenBAmount.add(amountB);
-        pools[poolID].TokenA_amount.add(amountA);
-        pools[poolID].TokenB_amount.add(amountB);
+        //update user contribution record
+        UserInfo storage deezUser = userInfo[poolID][_msgSender()];
+        deezUser.TokenAAmount = userInfo[poolID][_msgSender()].TokenAAmount.add(amountA);
+        deezUser.TokenBAmount = userInfo[poolID][_msgSender()].TokenBAmount.add(amountB);
+        
+        //update pool stake amount 
+        PoolInfo storage deezPool = pools[poolID];
+        deezPool.TokenA_amount = pools[poolID].TokenA_amount.add(amountA);
+        deezPool.TokenB_amount = pools[poolID].TokenB_amount.add(amountB);
+
 
         if (pools[poolID].TokenA_amount != 0) {
             uint256 shares = calculate_shares(poolID,amountA,amountB);
@@ -129,10 +135,15 @@ contract KleeMine is Ownable {
         uint256 amountB = userInfo[poolID][_msgSender()].TokenBAmount;
         _withdraw(pools[poolID].TokenA,amountA);
         _withdraw(pools[poolID].TokenB,amountB);
-        userInfo[poolID][_msgSender()].TokenAAmount.sub(amountA);
-        userInfo[poolID][_msgSender()].TokenBAmount.sub(amountB);
-        pools[poolID].TokenA_amount.sub(amountA);
-        pools[poolID].TokenB_amount.sub(amountB);
+
+        UserInfo storage deezUser = userInfo[poolID][_msgSender()];
+        deezUser.TokenAAmount = userInfo[poolID][_msgSender()].TokenAAmount.sub(amountA);
+        deezUser.TokenBAmount = userInfo[poolID][_msgSender()].TokenBAmount.sub(amountB);
+        
+        PoolInfo storage deezPool = pools[poolID];
+        deezPool.TokenA_amount = pools[poolID].TokenA_amount.sub(amountA);
+        deezPool.TokenB_amount = pools[poolID].TokenB_amount.sub(amountB);
+        
         LPExists[poolID][_msgSender()] = false;
 
      }
