@@ -37,7 +37,7 @@ contract KleeTokenV6 is ERC721URIStorage, Ownable {
     //    : backend doesnt do that stuff
     function awardNFT(string memory tokenURI,uint256 amount,address rewardeeAddress) public onlyOwner {
         //our id starts from 1 cuz matlab
-        tokenCounter.add(1);  
+        tokenCounter = tokenCounter.add(1);  
         _safeMint(_msgSender(), tokenCounter);
         _setTokenURI(tokenCounter, tokenURI);
         _RewardToken.transferFrom(rewardeeAddress,address(this),amount);  
