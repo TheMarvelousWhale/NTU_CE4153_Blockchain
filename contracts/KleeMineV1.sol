@@ -84,7 +84,7 @@ contract KleeMine is Ownable {
     }
 
 // ### core functions 
-    function stake(uint256 poolID,uint256 amountA, uint256 amountB) public {
+    function stake(uint256 poolID,uint256 amountA, uint256 amountB) public payable {
         require(poolID < pools.length);
         _deposit(pools[poolID].TokenA,amountA);
         _deposit(pools[poolID].TokenB,amountB);
